@@ -1,0 +1,7 @@
+*.RData
+*.Rhistory
+
+# ignore emacs files
+*~
+[#]*[#]
+.\#*
