@@ -14,6 +14,8 @@ library(jsonlite)
 library(RMySQL)
 
 url = "https://api.whitehouse.gov/v1/petitions.json?limit=999&status=open"
+reg_file = "/network/rit/lab/projpet/will/reg.RData"
+#reg_file = "/home/will/ppet/website/reg.RData"
 
 get_sigs = function(id, nsigs) {
   offset = 0
@@ -113,7 +115,7 @@ pets = dbReadTable(con, "petitions")
 vals = c("id", "type", "title", "body",
     "signatureThreshold", "signatureCount", "url",
     "deadline", "created", "status")
-load("reg.RData")
+load(reg_file)
 for (row in 1:nrow(petitions)) {
   print(row)
   p = petitions[row, ]
