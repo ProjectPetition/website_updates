@@ -9,13 +9,14 @@
 ## table2 = ");"
 ## command = paste0(table1, days, ", ", lowers, ", ", uppers, table2)
 ## CREATE TABLE responses (id int(7) NOT NULL PRIMARY KEY, url text, title text, date date);
+## CREATE TABLE signatureCounts (id MEDIUMINT NOT NULL AUTO_INCREMENT PRIMARY KEY, petition_id int(7) NOT NULL, date date NOT NULL, count int, cumulative int NOT NULL, forecast boolean NOT NULL, upperBound int, lowerBound int, foreign key(petition_id) references petitions(id));
 
 library(jsonlite)
 library(RMySQL)
 
 url = "https://api.whitehouse.gov/v1/petitions.json?limit=999&status=open"
 reg_file = "/network/rit/lab/projpet/will/reg.RData"
-#reg_file = "/home/will/ppet/website/reg.RData"
+## reg_file = "/home/will/ppet/website/reg.RData"
 
 get_sigs = function(id, nsigs) {
   offset = 0
@@ -25,13 +26,13 @@ get_sigs = function(id, nsigs) {
         id, "/signatures.json?offset=", offset))
     created = c(created, json$results$created)
     offset = offset + 1000
-    print(offset)
+    cat(paste0(offset, "\n"))
     Sys.sleep(.2)
   }
   created
 }
 
-add_to_table = function(p, con) {
+add_to_table = function(p, con, vals) {
   p$title = gsub("'", "\\\\'", p$title)
   p$body = gsub("'", "\\\\'", p$body)
   pvals = paste(p[1, vals], collapse = "','")
@@ -39,68 +40,65 @@ add_to_table = function(p, con) {
   dbSendQuery(con, q)
 }
 
-update_sigs = function(p, con) {
+update_sigs = function(p, con, counts) {
   # get daily signature counts
+
   sigs = get_sigs(p$id, p$signatureCount)
   sig_counts =
     table(as.Date(as.POSIXct(sigs, origin = "1970-01-01")))
-  creation_date =
-    as.Date(as.POSIXct(p$created, origin = "1970-01-01"))
-  ndays = min(30, Sys.Date() - creation_date)
+  ndays = min(30, Sys.Date() - p$creation_date)
   
-  dates = creation_date + 0:(ndays-1)
+  dates = p$creation_date + 0:(ndays-1)
   days = setNames(sig_counts[as.character(dates)], dates)
 
   # replace old day NA's with zero
   days[is.na(days)] = 0
-  pvals = paste(paste0("day", 1:ndays, "=", cumsum(days)),
-      collapse = ", ")
-  pvalsl = paste(paste0("lower", 1:ndays, "=", cumsum(days)),
-      collapse = ", ")
-  pvalsu = paste(paste0("upper", 1:ndays, "=", cumsum(days)),
-      collapse = ", ")
-  q = paste0("update petitions set signatureCount=",
-      p$signatureCount, ", ", pvals, ", ", pvalsl,
-      ", ", pvalsu, " where id=", p$id)
-  dbSendQuery(con, q)
-  # return the daily counts for convenience
+  for (n in 1:length(days)) {
+    if (counts_exist) {
+      q = paste0("update signatureCounts set count=", days[n],
+          ", cumulative=", sum(days[1:n]),
+          ", upperBound=NULL, lowerBound=NULL, forecast=false where petition_id=", p$id,
+          " and date='", dates[n], "'")
+    } else {
+      q = paste0("insert into signatureCounts (petition_id, date, count, cumulative, forecast) values(",
+          p$id, ",'", dates[n], "',", days[n], ",", sum(days[1:n]), ",false)")
+    }
+    dbSendQuery(con, q)
+  }
   days
 }
 
-update_forecast = function(p, con, days, reg) {
-  # set numbers for the days we already have
-  lowers = days
-  uppers = days
+update_forecast = function(p, con, days, reg, forecast_exists) {
+  cur_count = sum(days)
   ndays = length(days)
   newdata =
     data.frame(l1 = log(days[ndays] + 1),
                l2 = log(days[ndays - 1] + 1))
-  for (date in 1:(30 - ndays)) {
-    reg1 = reg[[ndays]][[date]]
+  # the dates being forecasted (starts with today)
+  dates = Sys.Date() + 0:30
+  for (n in 1:(30 - ndays)) {
+    reg1 = reg[[ndays]][[n]]
     ## prediction = predict(reg1, newdata = newdata,
     ##     interval = "confidence")
     prediction = predict(reg1, newdata = newdata,
         interval = "predict")
-    days[ndays + date] =
-      max(round(exp(prediction[, "fit"]) - 1), 0)
-    lowers[ndays + date] =
-      max(round(exp(prediction[, "lwr"]) - 1), 0)
-    uppers[ndays + date] =
-      max(round(exp(prediction[, "upr"]) - 1), 0)
+    new_sigs = max(round(exp(prediction[, "fit"]) - 1), 0)
+    lower = max(round(exp(prediction[, "lwr"]) - 1), 0)
+    upper = max(round(exp(prediction[, "upr"]) - 1), 0)
+    if (forecast_exists) {
+      q = paste0("update signatureCounts set count=NULL",
+          ", cumulative=", cur_count + new_sigs,
+          ", upperBound=", cur_count + upper,
+          ", lowerBound=", cur_count + lower,
+          ", forecast=true where petition_id=", p$id,
+          " and date='", dates[n], "'")
+    } else {
+      q = paste0("insert into signatureCounts (petition_id, date, cumulative, upperBound, lowerBound, forecast) values(",
+          p$id, ",'", dates[n], "',", cur_count + new_sigs, ",",
+          cur_count + upper, ",", cur_count + lower, ",true)")
+    }
+    dbSendQuery(con, q)
   }
-
-  cur_count = sum(days[1:ndays])
-  pvals = paste(paste0("day", (ndays + 1):30,
-      "=", cur_count + days[(ndays + 1):30]), collapse = ", ")
-  pvalsl = paste(paste0("lower", (ndays + 1):30,
-      "=", cur_count + lowers[(ndays + 1):30]),
-      collapse = ", ")
-  pvalsu = paste(paste0("upper", (ndays + 1):30,
-      "=", cur_count + uppers[(ndays + 1):30]),
-      collapse = ", ")
-  q = paste0("update petitions set ", pvals, ", ", pvalsl,
-      ", ", pvalsu, " where id=", p$id)
-  dbSendQuery(con, q)
 }
 
 
@@ -111,34 +109,39 @@ petitions = response$results
 ##     password = "root")
 con = dbConnect(MySQL(), dbname = "website")
 pets = dbReadTable(con, "petitions")
+counts = dbReadTable(con, "signatureCounts")
 
 vals = c("id", "type", "title", "body",
     "signatureThreshold", "signatureCount", "url",
     "deadline", "created", "status")
 load(reg_file)
 for (row in 1:nrow(petitions)) {
-  print(row)
+  cat(paste0(row, "\n"))
   p = petitions[row, ]
 
   # get the age of the petition, in days
-  creation_date =
+  p$creation_date =
     as.Date(as.POSIXct(p$created, origin = "1970-01-01"))
-  ndays = Sys.Date() - creation_date
+  ndays = Sys.Date() - p$creation_date
 
   # add to petitions table, if needed
-  if (!(p$id %in% pets$id)) {
-    add_to_table(p, con)
-    # also add daily signature counts, if any
-    if (ndays > 0) days = update_sigs(p, con)
-  } else {
-    # only update signature counts if needed (petition was created
-    # before today and less than 31 days old)
-    if (ndays > 0 && ndays < 31) days = update_sigs(p, con)
-  }
+  if (!(p$id %in% pets$id)) add_to_table(p, con, vals)
 
-  # update forecast, if needed
-  if (ndays > 1 && ndays < 30 && sum(days) >= 150)
-    update_forecast(p, con, days, reg)
+  # check to see if database contains signature counts already
+  counts_exist = any(counts$petition_id == p$id)
+  
+  # only update signature counts if needed (petition was created
+  # before today and less than 31 days old)
+  if (ndays > 0 && ndays < 31) {
+    days = update_sigs(p, con, counts_exist)
+
+    # update forecast too, if appropriate
+    if (ndays > 1 && ndays < 30 && sum(days) >= 150) {
+      forecast_exists =
+        any(counts$forecast[counts$petition_id == p$id])
+      update_forecast(p, con, days, reg, forecast_exists)
+    }
+  }
 }
 
 
