@@ -10,8 +10,8 @@ library(jsonlite)
 library(RMySQL)
 
 url = "https://api.whitehouse.gov/v1/petitions.json?limit=999&status=open"
-#reg_file = "/network/rit/lab/projpet/will/reg.RData"
-reg_file = "/home/will/ppet/website_updates/reg.RData"
+reg_file = "/network/rit/lab/projpet/will/reg.RData"
+#reg_file = "/home/will/ppet/website_updates/reg.RData"
 
 get_sigs = function(id, nsigs) {
   offset = 0
