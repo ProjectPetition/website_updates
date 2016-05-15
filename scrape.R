@@ -254,3 +254,9 @@ for (row in 1:nrow(responses)) {
 }
 
 dbDisconnect(con)
+
+
+
+
+# and finally, update the graph for Ji!
+source("graph.R")
