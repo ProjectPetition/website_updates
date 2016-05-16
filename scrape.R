@@ -212,32 +212,32 @@ for (row in 1:nrow(petitions)) {
 # get responses (sort of)
 
 # this needs to be updated! https://petitions.whitehouse.gov/responses
-response = "!"
-responses = data.frame()
-x = 1
-while (response != "") {
-  print(x)
-  url =
-    paste0("https://petitions.whitehouse.gov/responses/more/desc/",
-           x, "/2/0/")
+## response = "!"
+## responses = data.frame()
+## x = 1
+## while (response != "") {
+##   print(x)
+##   url =
+##     paste0("https://petitions.whitehouse.gov/responses/more/desc/",
+##            x, "/2/0/")
 
-  response = fromJSON(url)$markup
-  ids0 = regmatches(response,
-      gregexpr("id=\"response\\-[0-9]*\"", response))[[1]]
-  ids = gsub("id=\"response\\-([0-9]*)\"", "\\1", ids0)
-  urls0 = regmatches(response,
-      gregexpr("title\"><a href=\"[^\"]*\"", response))[[1]]
-  urls = substr(urls0, 17, nchar(urls0) - 1)
-  titles0 = regmatches(response,
-      gregexpr("title\"><a href=\"[^\"]*\" rel=\"nofollow\">[^<]*<", response))[[1]]
-  titles = gsub("title\"><a href=\"[^\"]*\" rel=\"nofollow\">(.*)<", "\\1", titles0)
-  dates0 = regmatches(response,
-      gregexpr("date\">[^>]*<", response))[[1]]
-  dates = as.Date(gsub("date\">([^>]*)<", "\\1", dates0), "%B %d, %Y")
-  responses = rbind(responses,
-      data.frame(id = ids, url = urls, title = titles, date = dates))
-  x = x + 1
-}
+##   response = fromJSON(url)$markup
+##   ids0 = regmatches(response,
+##       gregexpr("id=\"response\\-[0-9]*\"", response))[[1]]
+##   ids = gsub("id=\"response\\-([0-9]*)\"", "\\1", ids0)
+##   urls0 = regmatches(response,
+##       gregexpr("title\"><a href=\"[^\"]*\"", response))[[1]]
+##   urls = substr(urls0, 17, nchar(urls0) - 1)
+##   titles0 = regmatches(response,
+##       gregexpr("title\"><a href=\"[^\"]*\" rel=\"nofollow\">[^<]*<", response))[[1]]
+##   titles = gsub("title\"><a href=\"[^\"]*\" rel=\"nofollow\">(.*)<", "\\1", titles0)
+##   dates0 = regmatches(response,
+##       gregexpr("date\">[^>]*<", response))[[1]]
+##   dates = as.Date(gsub("date\">([^>]*)<", "\\1", dates0), "%B %d, %Y")
+##   responses = rbind(responses,
+##       data.frame(id = ids, url = urls, title = titles, date = dates))
+##   x = x + 1
+## }
 
 
 ## responses0 = dbReadTable(con, "responses")
