@@ -240,18 +240,18 @@ while (response != "") {
 }
 
 
-responses0 = dbReadTable(con, "responses")
-for (row in 1:nrow(responses)) {
-  p = responses[row, ]
+## responses0 = dbReadTable(con, "responses")
+## for (row in 1:nrow(responses)) {
+##   p = responses[row, ]
 
-  # add to responses table, if needed
-  if (!(p$id %in% responses0$id)) {
-    p$title = gsub("'", "\\\\'", p$title)
-    pvals = paste(p[1, c("id", "url", "title", "date")], collapse = "','")
-    q = paste0("insert into responses (id, url, title, date) values('", p$id, "','", p$url, "','", p$title, "','", p$date, "')")
-    dbSendQuery(con, q)
-  }
-}
+##   # add to responses table, if needed
+##   if (!(p$id %in% responses0$id)) {
+##     p$title = gsub("'", "\\\\'", p$title)
+##     pvals = paste(p[1, c("id", "url", "title", "date")], collapse = "','")
+##     q = paste0("insert into responses (id, url, title, date) values('", p$id, "','", p$url, "','", p$title, "','", p$date, "')")
+##     dbSendQuery(con, q)
+##   }
+## }
 
 dbDisconnect(con)
 
