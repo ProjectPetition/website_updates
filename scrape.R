@@ -14,6 +14,8 @@ library(populr)
 url = "https://api.whitehouse.gov/v1/petitions.json?limit=999&status=open"
 reg_file = "/network/rit/lab/projpet/will/reg.RData"
 #reg_file = "/home/will/ppet/website_updates/reg.RData"
+graph_script = "/network/rit/lab/projpet/will/website_updates/graph.R"
+## graph_script = "~/research/ppet/website_updates/graph.R"
 
 get_sigs = function(id, nsigs) {
   offset = 0
@@ -259,4 +261,4 @@ dbDisconnect(con)
 
 
 # and finally, update the graph for Ji!
-source("graph.R")
+source(graph_script)
